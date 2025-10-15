@@ -2,11 +2,12 @@ import logging
 import os
 import secrets
 from collections import Counter
-from datetime import date, datetime
+from contextlib import asynccontextmanager
+from datetime import date
 from typing import Optional
 
 from dotenv import load_dotenv
-from fastapi import Depends, FastAPI, Form, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, Form, HTTPException, Request
 from fastapi.responses import HTMLResponse, Response
 from fastapi.security import HTTPBasic, HTTPBasicCredentials
 from sqlmodel import Session, select
@@ -20,10 +21,9 @@ from app.models import MovimentoEstoque, Produto, Venda
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-from contextlib import asynccontextmanager
-
 # Carrega as variáveis de ambiente do arquivo .env
 load_dotenv()
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -35,6 +35,7 @@ async def lifespan(app: FastAPI):
     yield
     # Código a ser executado durante o desligamento (se necessário)
     print("Desligando...")
+
 
 app = FastAPI(title="API Trailer de Chopp", lifespan=lifespan)
 
@@ -48,6 +49,7 @@ validator = RequestValidator(TWILIO_AUTH_TOKEN)
 security = HTTPBasic()
 FORM_USER = os.getenv("FORM_USER")
 FORM_PASSWORD = os.getenv("FORM_PASSWORD")
+
 
 def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) -> str:
     """
@@ -63,7 +65,9 @@ def get_current_username(credentials: HTTPBasicCredentials = Depends(security)) 
         )
     return credentials.username
 
+
 # --- Endpoints do Formulário Web ---
+
 
 @app.get("/", response_class=HTMLResponse)
 async def get_registration_form(username: str = Depends(get_current_username)):
@@ -76,22 +80,23 @@ async def get_registration_form(username: str = Depends(get_current_username)):
     except FileNotFoundError:
         raise HTTPException(status_code=500, detail="Arquivo de formulário não encontrado.")
 
+
 @app.post("/registrar_venda", response_class=HTMLResponse)
 async def register_venda(
     *,
     sess: Session = Depends(get_session),
     data: date = Form(...),
     produto_id: int = Form(...),
-    tipo_venda: str = Form(...), # Novo campo para tipo de venda
-    total: Optional[float] = Form(None), # Total pode ser None para barril_festas
+    tipo_venda: str = Form(...),  # Novo campo para tipo de venda
+    total: Optional[float] = Form(None),  # Total pode ser None para barril_festas
     cartao: Optional[float] = Form(None),
     dinheiro: Optional[float] = Form(None),
     pix: Optional[float] = Form(None),
     custo_func: Optional[float] = Form(None),
     custo_copos: Optional[float] = Form(None),
     custo_boleto: Optional[float] = Form(None),
-    quantidade_barris_vendidos: Optional[float] = Form(None), # Para barril_festas
-    username: str = Depends(get_current_username) # Protege o endpoint
+    quantidade_barris_vendidos: Optional[float] = Form(None),  # Para barril_festas
+    username: str = Depends(get_current_username),  # Protege o endpoint
 ):
     """
     Recebe os dados do formulário e salva no banco de dados (protegido por senha).
@@ -105,41 +110,46 @@ async def register_venda(
     venda_total_calculada = 0.0
 
     if tipo_venda == "feira":
-        if total is None: raise HTTPException(status_code=400, detail="Total da venda é obrigatório para vendas de feira.")
+        if total is None:
+            raise HTTPException(status_code=400, detail="Total da venda é obrigatório para vendas de feira.")
         venda_total_calculada = total
         lucro = total - (custo_func or 0.0) - (custo_copos or 0.0) - (custo_boleto or 0.0)
         litros_vendidos = total / produto.preco_venda_litro
         barris_baixados = litros_vendidos / produto.volume_litros
-        
+
         # Registra o movimento de saída por venda de feira
         movimento_saida_venda = MovimentoEstoque(
             produto_id=produto_id,
             tipo_movimento="saida_venda",
             quantidade=barris_baixados,
             custo_unitario=None,
-            data_movimento=data
+            data_movimento=data,
         )
         sess.add(movimento_saida_venda)
 
     elif tipo_venda == "barril_festas":
-        if quantidade_barris_vendidos is None: raise HTTPException(status_code=400, detail="Quantidade de barris vendidos é obrigatória para vendas de barril_festas.")
-        
+        if quantidade_barris_vendidos is None:
+            raise HTTPException(
+                status_code=400, detail="Quantidade de barris vendidos é obrigatória para vendas de barril_festas."
+            )
+
         venda_total_calculada = quantidade_barris_vendidos * produto.preco_venda_barril_fechado
         barris_baixados = quantidade_barris_vendidos
 
         # Calcular o custo médio do barril para o lucro
         entradas_produto = sess.exec(
-            select(MovimentoEstoque.quantidade, MovimentoEstoque.custo_unitario)
-            .where(MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada")
+            select(MovimentoEstoque.quantidade, MovimentoEstoque.custo_unitario).where(
+                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada"
+            )
         ).all()
 
         total_custo_entradas = sum(e.quantidade * e.custo_unitario for e in entradas_produto if e.custo_unitario is not None)
         total_quantidade_entradas = sum(e.quantidade for e in entradas_produto)
-        
+
         custo_medio_barril = 0.0
         if total_quantidade_entradas > 0:
             custo_medio_barril = total_custo_entradas / total_quantidade_entradas
-        
+
         custo_total_venda_barril = barris_baixados * custo_medio_barril
         lucro = venda_total_calculada - custo_total_venda_barril
 
@@ -148,8 +158,8 @@ async def register_venda(
             produto_id=produto_id,
             tipo_movimento="saida_venda_barril",
             quantidade=barris_baixados,
-            custo_unitario=custo_medio_barril, # Opcional: registrar o custo médio da baixa
-            data_movimento=data
+            custo_unitario=custo_medio_barril,  # Opcional: registrar o custo médio da baixa
+            data_movimento=data,
         )
         sess.add(movimento_saida_barril)
 
@@ -168,9 +178,9 @@ async def register_venda(
         custo_copos=custo_copos,
         custo_boleto=custo_boleto,
         lucro=lucro,
-        dia_semana=data.strftime('%A'),
+        dia_semana=data.strftime("%A"),
         quantidade_barris_vendidos=barris_baixados,
-        preco_venda_litro_registrado=produto.preco_venda_litro if tipo_venda == "feira" else None
+        preco_venda_litro_registrado=produto.preco_venda_litro if tipo_venda == "feira" else None,
     )
     sess.add(nova_venda)
     sess.commit()
@@ -178,7 +188,9 @@ async def register_venda(
 
     return HTMLResponse(content="<h1>Registro salvo com sucesso!</h1><p><a href='/'>Registrar outra venda</a></p>")
 
+
 # --- Endpoints de Produtos ---
+
 
 @app.post("/produtos", response_class=HTMLResponse)
 async def create_produto(
@@ -188,7 +200,7 @@ async def create_produto(
     preco_venda_barril_fechado: float = Form(...),
     volume_litros: Optional[float] = Form(None),
     preco_venda_litro: Optional[float] = Form(None),
-    username: str = Depends(get_current_username)
+    username: str = Depends(get_current_username),
 ):
     produto_data = {
         "nome": nome,
@@ -204,16 +216,16 @@ async def create_produto(
     sess.commit()
     sess.refresh(produto)
     return HTMLResponse(content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>")
-    sess.commit()
-    sess.refresh(produto)
-    return HTMLResponse(content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+
 
 @app.get("/produtos", response_model=list[Produto])
 async def get_produtos(*, sess: Session = Depends(get_session), username: str = Depends(get_current_username)):
     produtos = sess.exec(select(Produto)).all()
     return produtos
 
+
 # --- Endpoints de Estoque ---
+
 
 @app.post("/estoque/entrada", response_class=HTMLResponse)
 async def register_entrada_estoque(
@@ -223,19 +235,20 @@ async def register_entrada_estoque(
     quantidade: int = Form(...),
     custo_unitario: float = Form(...),
     data_movimento: date = Form(...),
-    username: str = Depends(get_current_username)
+    username: str = Depends(get_current_username),
 ):
     movimento = MovimentoEstoque(
         produto_id=produto_id,
         tipo_movimento="entrada",
         quantidade=quantidade,
         custo_unitario=custo_unitario,
-        data_movimento=data_movimento
+        data_movimento=data_movimento,
     )
     sess.add(movimento)
     sess.commit()
     sess.refresh(movimento)
     return HTMLResponse(content=f"<h1>Entrada de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+
 
 @app.post("/estoque/saida_manual", response_class=HTMLResponse)
 async def register_saida_manual_estoque(
@@ -244,19 +257,20 @@ async def register_saida_manual_estoque(
     produto_id: int = Form(...),
     quantidade: int = Form(...),
     data_movimento: date = Form(...),
-    username: str = Depends(get_current_username)
+    username: str = Depends(get_current_username),
 ):
     movimento = MovimentoEstoque(
         produto_id=produto_id,
         tipo_movimento="saida_manual",
         quantidade=quantidade,
-        custo_unitario=None, # Saída manual não tem custo unitário associado diretamente
-        data_movimento=data_movimento
+        custo_unitario=None,  # Saída manual não tem custo unitário associado diretamente
+        data_movimento=data_movimento,
     )
     sess.add(movimento)
     sess.commit()
     sess.refresh(movimento)
     return HTMLResponse(content=f"<h1>Saída manual de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+
 
 @app.get("/estoque", response_model=dict)
 async def get_estoque_atual(*, sess: Session = Depends(get_session), username: str = Depends(get_current_username)):
@@ -271,29 +285,32 @@ async def get_estoque_atual(*, sess: Session = Depends(get_session), username: s
 
     for produto in produtos:
         entradas = sess.exec(
-            select(MovimentoEstoque.quantidade)
-            .where(MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada")
+            select(MovimentoEstoque.quantidade).where(
+                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada"
+            )
         ).all()
         saidas_manuais = sess.exec(
-            select(MovimentoEstoque.quantidade)
-            .where(MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "saida_manual")
+            select(MovimentoEstoque.quantidade).where(
+                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "saida_manual"
+            )
         ).all()
-        
+
         # TODO: Implementar a baixa automática por vendas (próximo passo)
         # Por enquanto, as vendas não afetam o estoque aqui.
 
         total_entradas = sum(entradas)
         total_saidas_manuais = sum(saidas_manuais)
-        
+
         estoque_atual = total_entradas - total_saidas_manuais
-        
+
         estoque_info[produto.nome] = {
             "quantidade_barris": estoque_atual,
             "volume_litros_total": estoque_atual * produto.volume_litros,
             "preco_venda_litro": produto.preco_venda_litro,
-            "preco_venda_barril_fechado": produto.preco_venda_barril_fechado
+            "preco_venda_barril_fechado": produto.preco_venda_barril_fechado,
         }
     return estoque_info
+
 
 # --- Lógica de Relatórios ---
 
@@ -319,10 +336,10 @@ def calculate_report_metrics(vendas: list[Venda]):
     gasto_func = sum(float(v.custo_func or 0.0) for v in vendas)
     gasto_copos = sum(float(v.custo_copos or 0.0) for v in vendas)
     gasto_boleto = sum(float(v.custo_boleto or 0.0) for v in vendas)
-    
+
     gasto_total = gasto_func + gasto_copos + gasto_boleto
     receita_liquida = receita_bruta - gasto_total
-    
+
     media_vendas = receita_bruta / len(vendas)
 
     return {
@@ -335,23 +352,25 @@ def calculate_report_metrics(vendas: list[Venda]):
         "dias_registrados": len(vendas),
     }
 
+
 def get_report_data(inicio: date, fim: date, sess: Session):
     """
     Busca os dados de um relatório para um período específico e retorna as métricas calculadas.
     """
     vendas = sess.exec(select(Venda).where(Venda.data >= inicio, Venda.data < fim)).all()
-    
+
     if not vendas:
         return None
 
     return calculate_report_metrics(vendas)
+
 
 def get_dias_movimento(inicio: date, fim: date, sess: Session):
     """
     Busca e calcula os dias da semana mais lucrativos em um período.
     """
     vendas = sess.exec(select(Venda.dia_semana, Venda.total).where(Venda.data >= inicio, Venda.data < fim)).all()
-    
+
     if not vendas:
         return None
 
@@ -359,10 +378,12 @@ def get_dias_movimento(inicio: date, fim: date, sess: Session):
     for dia_semana, total in vendas:
         if dia_semana:
             faturamento_por_dia[dia_semana] += total
-    
+
     return faturamento_por_dia.most_common()
 
+
 # --- Webhook do WhatsApp ---
+
 
 @app.post("/whatsapp/webhook")
 async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body"), sess: Session = Depends(get_session)):
@@ -379,7 +400,7 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
     original_host = request.headers.get("X-Forwarded-Host", request.url.netloc)
     url = f"{original_protocol}://{original_host}{request.url.path}"
     form_params = await request.form()
-    
+
     logger.debug(f"Webhook URL recebida: {url}")
     logger.debug(f"Webhook Form Params recebidos: {form_params}")
 
@@ -395,7 +416,7 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
 
     text = body.strip().lower().replace('relatório', 'relatorio')
     parts = text.split()
-    
+
     resp = MessagingResponse()
 
     # Lógica de reconhecimento de comandos
@@ -411,15 +432,15 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
         elif command_two_words == "melhores dias":
             command = command_two_words
         else:
-            command = parts[0] # Se não for comando de duas palavras, pega a primeira palavra
+            command = parts[0]  # Se não for comando de duas palavras, pega a primeira palavra
     else:
-        command = parts[0] # Se for apenas uma palavra, pega ela mesma
+        command = parts[0]  # Se for apenas uma palavra, pega ela mesma
 
     if command == "relatorio":
         try:
             mes = int(parts[1])
             ano = int(parts[2])
-            
+
             # Busca relatório do mês atual
             inicio_atual = date(ano, mes, 1)
             fim_atual = date(ano + (mes == 12), (mes % 12) + 1, 1)
@@ -486,7 +507,7 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
                 f"--------------------------\n"
                 f"Receita bruta: R$ {report['receita_bruta']:.2f}\n"
                 f"Receita líquida: R$ {report['receita_liquida']:.2f}\n"
-                f"Média por dia: R$ {report['media_vendas']:.2f}\n"
+f"Média por dia: R$ {report['media_vendas']:.2f}\n"
                 f"Dias registrados: {report['dias_registrados']}"
             )
             resp.message(text_reply)
@@ -515,7 +536,7 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
             else:
                 rec_liq1, rec_liq2 = report1['receita_liquida'], report2['receita_liquida']
                 variacao = f"{((rec_liq2 / rec_liq1) - 1):.2%}" if rec_liq1 > 0 else "N/A"
-                
+
                 text_reply = (
                     f"📊 Comparativo: {mes1}/{ano1} vs {mes2}/{ano2}\n"
                     f"--------------------------\n"
@@ -546,7 +567,7 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
                     'Thursday': 'Quinta-feira',
                     'Friday': 'Sexta-feira',
                     'Saturday': 'Sábado',
-                    'Sunday': 'Domingo'
+                    'Sunday': 'Domingo',
                 }
                 reply_lines = [f"🏆 Melhores Dias de {mes}/{ano} 🏆"]
                 for i, (dia, total) in enumerate(ranking):

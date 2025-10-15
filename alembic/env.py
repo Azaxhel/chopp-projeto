@@ -1,4 +1,5 @@
 import os
+import sys
 from logging.config import fileConfig
 
 from alembic import context
@@ -6,11 +7,10 @@ from dotenv import load_dotenv
 from sqlmodel import SQLModel
 
 # Adiciona o diretório raiz ao sys.path para encontrar o módulo 'app'
-import sys
-sys.path.append(os.path.join(os.path.dirname(__file__), '..'))
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
-# Importa todos os modelos para que o Alembic os reconheça
-from app.models import *
+from app.database import engine  # Importa o engine da sua aplicação
+from app.models import MovimentoEstoque, Produto, Venda
 
 # Carrega as variáveis de ambiente (ex: DATABASE_URL)
 load_dotenv()
@@ -68,8 +68,6 @@ def run_migrations_offline() -> None:
         context.run_migrations()
 
 
-from app.database import engine # Importa o engine da sua aplicação
-
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode.
 
@@ -78,9 +76,7 @@ def run_migrations_online() -> None:
 
     """
     with engine.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

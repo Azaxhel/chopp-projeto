@@ -55,7 +55,7 @@ def clean_master(output_path="master.csv"):
 
     # concatena num único dataframe
     if not dfs:
-        logger.warning('Nenhuma aba de 'registros_' encontrada na planilha.')
+        logger.warning("Nenhuma aba de 'registros_' encontrada na planilha.")
         return
     
     master = pd.concat(dfs, ignore_index=True)

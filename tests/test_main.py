@@ -11,7 +11,7 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')
 
 from app.main import app, calculate_report_metrics
 from app.database import get_session
-from app.models import MovimentoEstoque, Venda, Produto
+from app.models import MovimentoEstoque, Venda
 
 # --- Configuração do Banco de Dados de Teste ---
 DATABASE_URL = os.getenv("DATABASE_URL")
