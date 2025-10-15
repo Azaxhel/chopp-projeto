@@ -204,6 +204,9 @@ async def create_produto(
     sess.commit()
     sess.refresh(produto)
     return HTMLResponse(content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+    sess.commit()
+    sess.refresh(produto)
+    return HTMLResponse(content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>")
 
 @app.get("/produtos", response_model=list[Produto])
 async def get_produtos(*, sess: Session = Depends(get_session), username: str = Depends(get_current_username)):
