@@ -21,6 +21,7 @@ MASTER_CSV = BASE_DIR / "master.csv"
 # Usa variável de ambiente para o nome do produto, com um padrão
 ETL_PRODUCT_NAME = os.getenv("ETL_PRODUCT_NAME", "Chopp Pilsen 50L")
 
+
 def load():
     try:
         # Inicializa o banco (cria tabelas se não existirem)
@@ -32,12 +33,18 @@ def load():
     # Busca o ID do produto a partir da variável de ambiente
     product_id = None
     with Session(engine) as sess:
-        produto = sess.exec(select(Produto).where(Produto.nome == ETL_PRODUCT_NAME)).first()
+        produto = sess.exec(
+            select(Produto).where(Produto.nome == ETL_PRODUCT_NAME)
+        ).first()
         if produto:
             product_id = produto.id
-            logger.info(f"Produto '{ETL_PRODUCT_NAME}' encontrado com ID: {product_id}.")
+            logger.info(
+                f"Produto '{ETL_PRODUCT_NAME}' encontrado com ID: {product_id}."
+            )
         else:
-            logger.error(f"Produto '{ETL_PRODUCT_NAME}' não encontrado no banco de dados. Por favor, cadastre-o primeiro.")
+            logger.error(
+                f"Produto '{ETL_PRODUCT_NAME}' não encontrado no banco de dados. Por favor, cadastre-o primeiro."
+            )
             raise ValueError(f"Produto '{ETL_PRODUCT_NAME}' não encontrado.")
 
     if not MASTER_CSV.exists():
@@ -52,18 +59,24 @@ def load():
     # --- Apaga todas as vendas para as datas deste CSV ---
     datas = df["data"].dropna().unique().tolist()
     if not datas:
-        logger.warning("Nenhuma data válida encontrada no arquivo CSV. Nenhum dado será carregado.")
+        logger.warning(
+            "Nenhuma data válida encontrada no arquivo CSV. Nenhum dado será carregado."
+        )
         return
 
     logger.info(f"Apagando registros existentes para {len(datas)} datas.")
     with Session(engine) as sess:
         try:
-            stmt = delete(Venda).where(Venda.data.in_(datas), Venda.produto_id == product_id)
+            stmt = delete(Venda).where(
+                Venda.data.in_(datas), Venda.produto_id == product_id
+            )
             result = sess.exec(stmt)
             sess.commit()
             logger.info(f"{result.rowcount} registros foram apagados.")
         except exc.SQLAlchemyError as e:
-            logger.error(f"Erro no banco de dados ao apagar registros: {e}", exc_info=True)
+            logger.error(
+                f"Erro no banco de dados ao apagar registros: {e}", exc_info=True
+            )
             sess.rollback()
             raise
 
@@ -84,17 +97,22 @@ def load():
                     custo_boleto=row.get("custo_boleto", 0.0),
                     lucro=row.get("lucro", 0.0),
                     observacoes=row.get("observacoes"),
-                    produto_id=product_id # Associa ao produto correto
+                    produto_id=product_id,  # Associa ao produto correto
                 )
                 sess.add(venda)
             sess.commit()
         except exc.SQLAlchemyError as e:
-            logger.error(f"Erro no banco de dados ao inserir registros: {e}", exc_info=True)
+            logger.error(
+                f"Erro no banco de dados ao inserir registros: {e}", exc_info=True
+            )
             sess.rollback()
             raise
 
     logger.info(f"{len(df)} registros recarregados para {len(datas)} dias.")
 
+
 if __name__ == "__main__":
-    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+    logging.basicConfig(
+        level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+    )
     load()

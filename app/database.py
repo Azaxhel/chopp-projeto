@@ -11,12 +11,13 @@ connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite")
 # Engine é criado aqui, mas a sessão será gerenciada pela aplicação
 engine = create_engine(DATABASE_URL, echo=False, connect_args=connect_args)
 
+
 def init_db():
     """Cria as tabelas do banco de dados se não existirem."""
     SQLModel.metadata.create_all(engine)
+
 
 def get_session():
     """Função de dependência para obter uma sessão do banco de dados."""
     with Session(engine) as session:
         yield session
-    

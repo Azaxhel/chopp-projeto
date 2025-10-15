@@ -18,7 +18,9 @@ from app.database import get_session, init_db
 from app.models import MovimentoEstoque, Produto, Venda
 
 # Configuração do logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger(__name__)
 
 # Carrega as variáveis de ambiente do arquivo .env
@@ -78,7 +80,9 @@ async def get_registration_form(username: str = Depends(get_current_username)):
         with open("app/templates/index.html", "r", encoding="utf-8") as f:
             return HTMLResponse(content=f.read())
     except FileNotFoundError:
-        raise HTTPException(status_code=500, detail="Arquivo de formulário não encontrado.")
+        raise HTTPException(
+            status_code=500, detail="Arquivo de formulário não encontrado."
+        )
 
 
 @app.post("/registrar_venda", response_class=HTMLResponse)
@@ -111,9 +115,14 @@ async def register_venda(
 
     if tipo_venda == "feira":
         if total is None:
-            raise HTTPException(status_code=400, detail="Total da venda é obrigatório para vendas de feira.")
+            raise HTTPException(
+                status_code=400,
+                detail="Total da venda é obrigatório para vendas de feira.",
+            )
         venda_total_calculada = total
-        lucro = total - (custo_func or 0.0) - (custo_copos or 0.0) - (custo_boleto or 0.0)
+        lucro = (
+            total - (custo_func or 0.0) - (custo_copos or 0.0) - (custo_boleto or 0.0)
+        )
         litros_vendidos = total / produto.preco_venda_litro
         barris_baixados = litros_vendidos / produto.volume_litros
 
@@ -130,20 +139,28 @@ async def register_venda(
     elif tipo_venda == "barril_festas":
         if quantidade_barris_vendidos is None:
             raise HTTPException(
-                status_code=400, detail="Quantidade de barris vendidos é obrigatória para vendas de barril_festas."
+                status_code=400,
+                detail="Quantidade de barris vendidos é obrigatória para vendas de barril_festas.",
             )
 
-        venda_total_calculada = quantidade_barris_vendidos * produto.preco_venda_barril_fechado
+        venda_total_calculada = (
+            quantidade_barris_vendidos * produto.preco_venda_barril_fechado
+        )
         barris_baixados = quantidade_barris_vendidos
 
         # Calcular o custo médio do barril para o lucro
         entradas_produto = sess.exec(
             select(MovimentoEstoque.quantidade, MovimentoEstoque.custo_unitario).where(
-                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada"
+                MovimentoEstoque.produto_id == produto.id,
+                MovimentoEstoque.tipo_movimento == "entrada",
             )
         ).all()
 
-        total_custo_entradas = sum(e.quantidade * e.custo_unitario for e in entradas_produto if e.custo_unitario is not None)
+        total_custo_entradas = sum(
+            e.quantidade * e.custo_unitario
+            for e in entradas_produto
+            if e.custo_unitario is not None
+        )
         total_quantidade_entradas = sum(e.quantidade for e in entradas_produto)
 
         custo_medio_barril = 0.0
@@ -164,7 +181,10 @@ async def register_venda(
         sess.add(movimento_saida_barril)
 
     else:
-        raise HTTPException(status_code=400, detail="Tipo de venda inválido. Use 'feira' ou 'barril_festas'.")
+        raise HTTPException(
+            status_code=400,
+            detail="Tipo de venda inválido. Use 'feira' ou 'barril_festas'.",
+        )
 
     nova_venda = Venda(
         data=data,
@@ -180,13 +200,17 @@ async def register_venda(
         lucro=lucro,
         dia_semana=data.strftime("%A"),
         quantidade_barris_vendidos=barris_baixados,
-        preco_venda_litro_registrado=produto.preco_venda_litro if tipo_venda == "feira" else None,
+        preco_venda_litro_registrado=produto.preco_venda_litro
+        if tipo_venda == "feira"
+        else None,
     )
     sess.add(nova_venda)
     sess.commit()
     sess.refresh(nova_venda)
 
-    return HTMLResponse(content="<h1>Registro salvo com sucesso!</h1><p><a href='/'>Registrar outra venda</a></p>")
+    return HTMLResponse(
+        content="<h1>Registro salvo com sucesso!</h1><p><a href='/'>Registrar outra venda</a></p>"
+    )
 
 
 # --- Endpoints de Produtos ---
@@ -215,11 +239,17 @@ async def create_produto(
     sess.add(produto)
     sess.commit()
     sess.refresh(produto)
-    return HTMLResponse(content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+    return HTMLResponse(
+        content=f"<h1>Produto '{produto.nome}' cadastrado com sucesso!</h1><p><a href='/'>Voltar</a></p>"
+    )
 
 
 @app.get("/produtos", response_model=list[Produto])
-async def get_produtos(*, sess: Session = Depends(get_session), username: str = Depends(get_current_username)):
+async def get_produtos(
+    *,
+    sess: Session = Depends(get_session),
+    username: str = Depends(get_current_username),
+):
     produtos = sess.exec(select(Produto)).all()
     return produtos
 
@@ -247,7 +277,9 @@ async def register_entrada_estoque(
     sess.add(movimento)
     sess.commit()
     sess.refresh(movimento)
-    return HTMLResponse(content=f"<h1>Entrada de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+    return HTMLResponse(
+        content=f"<h1>Entrada de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>"
+    )
 
 
 @app.post("/estoque/saida_manual", response_class=HTMLResponse)
@@ -269,11 +301,17 @@ async def register_saida_manual_estoque(
     sess.add(movimento)
     sess.commit()
     sess.refresh(movimento)
-    return HTMLResponse(content=f"<h1>Saída manual de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>")
+    return HTMLResponse(
+        content=f"<h1>Saída manual de {quantidade} barril(is) registrada com sucesso!</h1><p><a href='/'>Voltar</a></p>"
+    )
 
 
 @app.get("/estoque", response_model=dict)
-async def get_estoque_atual(*, sess: Session = Depends(get_session), username: str = Depends(get_current_username)):
+async def get_estoque_atual(
+    *,
+    sess: Session = Depends(get_session),
+    username: str = Depends(get_current_username),
+):
     # Calcula o estoque atual por produto
     # Soma as entradas e subtrai as saídas
     # Isso é uma simplificação, um sistema de estoque real seria mais complexo
@@ -286,12 +324,14 @@ async def get_estoque_atual(*, sess: Session = Depends(get_session), username: s
     for produto in produtos:
         entradas = sess.exec(
             select(MovimentoEstoque.quantidade).where(
-                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "entrada"
+                MovimentoEstoque.produto_id == produto.id,
+                MovimentoEstoque.tipo_movimento == "entrada",
             )
         ).all()
         saidas_manuais = sess.exec(
             select(MovimentoEstoque.quantidade).where(
-                MovimentoEstoque.produto_id == produto.id, MovimentoEstoque.tipo_movimento == "saida_manual"
+                MovimentoEstoque.produto_id == produto.id,
+                MovimentoEstoque.tipo_movimento == "saida_manual",
             )
         ).all()
 
@@ -313,6 +353,7 @@ async def get_estoque_atual(*, sess: Session = Depends(get_session), username: s
 
 
 # --- Lógica de Relatórios ---
+
 
 def calculate_report_metrics(vendas: list[Venda]):
     """
@@ -357,7 +398,9 @@ def get_report_data(inicio: date, fim: date, sess: Session):
     """
     Busca os dados de um relatório para um período específico e retorna as métricas calculadas.
     """
-    vendas = sess.exec(select(Venda).where(Venda.data >= inicio, Venda.data < fim)).all()
+    vendas = sess.exec(
+        select(Venda).where(Venda.data >= inicio, Venda.data < fim)
+    ).all()
 
     if not vendas:
         return None
@@ -369,7 +412,11 @@ def get_dias_movimento(inicio: date, fim: date, sess: Session):
     """
     Busca e calcula os dias da semana mais lucrativos em um período.
     """
-    vendas = sess.exec(select(Venda.dia_semana, Venda.total).where(Venda.data >= inicio, Venda.data < fim)).all()
+    vendas = sess.exec(
+        select(Venda.dia_semana, Venda.total).where(
+            Venda.data >= inicio, Venda.data < fim
+        )
+    ).all()
 
     if not vendas:
         return None
@@ -386,7 +433,11 @@ def get_dias_movimento(inicio: date, fim: date, sess: Session):
 
 
 @app.post("/whatsapp/webhook")
-async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body"), sess: Session = Depends(get_session)):
+async def whatsapp_webhook(
+    request: Request,
+    body: str = Form(..., alias="Body"),
+    sess: Session = Depends(get_session),
+):
     """
     Webhook para receber mensagens WhatsApp via Twilio.
     """
@@ -408,13 +459,13 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
     form_params_dict = {key: value for key, value in form_params.items()}
 
     # Obtém a assinatura do Twilio do cabeçalho da requisição
-    twilio_signature = request.headers.get('X-Twilio-Signature', '')
+    twilio_signature = request.headers.get("X-Twilio-Signature", "")
 
     if not validator.validate(url, form_params_dict, twilio_signature):
         # Se a validação falhar, retorna um erro 403 Forbidden
         raise HTTPException(status_code=403, detail="Assinatura Twilio inválida.")
 
-    text = body.strip().lower().replace('relatório', 'relatorio')
+    text = body.strip().lower().replace("relatório", "relatorio")
     parts = text.split()
 
     resp = MessagingResponse()
@@ -432,7 +483,9 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
         elif command_two_words == "melhores dias":
             command = command_two_words
         else:
-            command = parts[0]  # Se não for comando de duas palavras, pega a primeira palavra
+            command = parts[
+                0
+            ]  # Se não for comando de duas palavras, pega a primeira palavra
     else:
         command = parts[0]  # Se for apenas uma palavra, pega ela mesma
 
@@ -458,17 +511,23 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
 
             tendencia_str = ""
             if report_anterior:
-                rec_liq_atual = report['receita_liquida']
-                rec_liq_anterior = report_anterior['receita_liquida']
+                rec_liq_atual = report["receita_liquida"]
+                rec_liq_anterior = report_anterior["receita_liquida"]
                 if rec_liq_anterior > 0:
                     variacao = (rec_liq_atual / rec_liq_anterior) - 1
-                    tendencia_str = f"\n📈 Tendência: {variacao:.2%} em relação ao mês anterior."
+                    tendencia_str = (
+                        f"\n📈 Tendência: {variacao:.2%} em relação ao mês anterior."
+                    )
                 else:
                     tendencia_str = "\n📈 Tendência: N/A (mês anterior sem receita)."
             else:
                 tendencia_str = "\n📈 Tendência: N/A (sem dados do mês anterior)."
 
-            gastos_totais = report['gasto_funcionarios'] + report['gasto_copos'] + report['gasto_boleto']
+            gastos_totais = (
+                report["gasto_funcionarios"]
+                + report["gasto_copos"]
+                + report["gasto_boleto"]
+            )
             text_reply = (
                 f"🧾 Relatório {mes}/{ano}\n"
                 f"--------------------------\n"
@@ -500,14 +559,16 @@ async def whatsapp_webhook(request: Request, body: str = Form(..., alias="Body")
             report = get_report_data(inicio, fim, sess)
 
             if not report:
-                raise HTTPException(status_code=404, detail=f"Nenhum registro para o ano {ano}")
+                raise HTTPException(
+                    status_code=404, detail=f"Nenhum registro para o ano {ano}"
+                )
 
             text_reply = (
                 f"🗓️ Relatório Anual {ano}\n"
                 f"--------------------------\n"
                 f"Receita bruta: R$ {report['receita_bruta']:.2f}\n"
                 f"Receita líquida: R$ {report['receita_liquida']:.2f}\n"
-f"Média por dia: R$ {report['media_vendas']:.2f}\n"
+                f"Média por dia: R$ {report['media_vendas']:.2f}\n"
                 f"Dias registrados: {report['dias_registrados']}"
             )
             resp.message(text_reply)
@@ -530,12 +591,21 @@ f"Média por dia: R$ {report['media_vendas']:.2f}\n"
             report2 = get_report_data(inicio2, fim2, sess)
 
             if not report1:
-                resp.message(f"Não há dados para o primeiro período ({mes1}/{ano1}) para comparar.")
+                resp.message(
+                    f"Não há dados para o primeiro período ({mes1}/{ano1}) para comparar."
+                )
             elif not report2:
-                resp.message(f"Não há dados para o segundo período ({mes2}/{ano2}) para comparar.")
+                resp.message(
+                    f"Não há dados para o segundo período ({mes2}/{ano2}) para comparar."
+                )
             else:
-                rec_liq1, rec_liq2 = report1['receita_liquida'], report2['receita_liquida']
-                variacao = f"{((rec_liq2 / rec_liq1) - 1):.2%}" if rec_liq1 > 0 else "N/A"
+                rec_liq1, rec_liq2 = (
+                    report1["receita_liquida"],
+                    report2["receita_liquida"],
+                )
+                variacao = (
+                    f"{((rec_liq2 / rec_liq1) - 1):.2%}" if rec_liq1 > 0 else "N/A"
+                )
 
                 text_reply = (
                     f"📊 Comparativo: {mes1}/{ano1} vs {mes2}/{ano2}\n"
@@ -561,18 +631,18 @@ f"Média por dia: R$ {report['media_vendas']:.2f}\n"
             else:
                 # Dicionário para traduzir os dias da semana
                 traducao_dias = {
-                    'Monday': 'Segunda-feira',
-                    'Tuesday': 'Terça-feira',
-                    'Wednesday': 'Quarta-feira',
-                    'Thursday': 'Quinta-feira',
-                    'Friday': 'Sexta-feira',
-                    'Saturday': 'Sábado',
-                    'Sunday': 'Domingo',
+                    "Monday": "Segunda-feira",
+                    "Tuesday": "Terça-feira",
+                    "Wednesday": "Quarta-feira",
+                    "Thursday": "Quinta-feira",
+                    "Friday": "Sexta-feira",
+                    "Saturday": "Sábado",
+                    "Sunday": "Domingo",
                 }
                 reply_lines = [f"🏆 Melhores Dias de {mes}/{ano} 🏆"]
                 for i, (dia, total) in enumerate(ranking):
                     dia_traduzido = traducao_dias.get(dia.capitalize(), dia)
-                    reply_lines.append(f"{i+1}. {dia_traduzido}: R$ {total:.2f}")
+                    reply_lines.append(f"{i + 1}. {dia_traduzido}: R$ {total:.2f}")
                 resp.message("\n".join(reply_lines))
         except (ValueError, IndexError):
             resp.message("Formato inválido. Use: melhores dias <mês> <ano>")
