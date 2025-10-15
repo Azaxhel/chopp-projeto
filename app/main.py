@@ -186,13 +186,20 @@ async def create_produto(
     sess: Session = Depends(get_session),
     nome: str = Form(...),
     preco_venda_barril_fechado: float = Form(...),
+    volume_litros: Optional[float] = Form(None),
+    preco_venda_litro: Optional[float] = Form(None),
     username: str = Depends(get_current_username)
 ):
-    produto = Produto(
-        nome=nome,
-        preco_venda_litro=20.0, # Valor fixo
-        preco_venda_barril_fechado=preco_venda_barril_fechado
-    )
+    produto_data = {
+        "nome": nome,
+        "preco_venda_barril_fechado": preco_venda_barril_fechado,
+    }
+    if volume_litros is not None:
+        produto_data["volume_litros"] = volume_litros
+    if preco_venda_litro is not None:
+        produto_data["preco_venda_litro"] = preco_venda_litro
+
+    produto = Produto(**produto_data)
     sess.add(produto)
     sess.commit()
     sess.refresh(produto)
