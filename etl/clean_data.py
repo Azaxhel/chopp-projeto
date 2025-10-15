@@ -15,7 +15,7 @@ if not SHEETS_XLSX_URL:
     raise ValueError("A variável de ambiente SHEETS_XLSX_URL não foi definida.")
 
 def clean_master(output_path="master.csv"):
-    logger.info(f"Iniciando leitura da planilha a partir da URL.")
+    logger.info("Iniciando leitura da planilha a partir da URL.")
     # Le todas as abas do sheets
     all_sheets: dict[str, pd.DataFrame] = pd.read_excel(
         SHEETS_XLSX_URL,
