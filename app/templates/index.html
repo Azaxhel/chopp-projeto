@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestão Trailer de Chopp</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f4f4f9;
+            color: #333;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 20px;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+        .container {
+            background: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 600px;
+            margin-bottom: 20px;
+        }
+        h1, h2 {
+            font-size: 1.5rem;
+            margin-bottom: 1.5rem;
+            text-align: center;
+            color: #007bff;
+        }
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        label {
+            display: block;
+            margin-bottom: 0.5rem;
+            font-weight: 600;
+        }
+        input[type="date"], input[type="number"], input[type="text"], select {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        button {
+            width: 100%;
+            padding: 0.75rem;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #0056b3;
+        }
+        .section-divider {
+            border-top: 1px solid #eee;
+            margin-top: 30px;
+            padding-top: 20px;
+        }
+        .stock-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        .stock-table th, .stock-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        .stock-table th {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Registrar Nova Venda</h1>
+        <form action="/registrar_venda" method="post">
+            <div class="form-group">
+                <label for="data">Data da Venda</label>
+                <input type="date" id="data" name="data" required>
+            </div>
+            <div class="form-group">
+                <label for="venda_produto_id">Produto Vendido</label>
+                <select id="venda_produto_id" name="produto_id" required>
+                    <!-- Opções serão carregadas via JavaScript -->
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label for="tipo_venda">Tipo de Venda</label>
+                <select id="tipo_venda" name="tipo_venda" required>
+                    <option value="">Selecione o tipo de venda</option>
+                    <option value="feira">Feira (Venda por Copo)</option>
+                    <option value="barril_festas">Barril Festas (Venda de Barril Fechado)</option>
+                </select>
+            </div>
+
+            <div id="campos_feira">
+                <div class="form-group">
+                    <label for="total">Venda Total (R$)</label>
+                    <input type="number" id="total" name="total" step="0.01" placeholder="Ex: 1500.50">
+                </div>
+                <div class="form-group">
+                    <label for="cartao">Venda no Cartão (R$)</label>
+                    <input type="number" id="cartao" name="cartao" step="0.01" placeholder="Ex: 800.00">
+                </div>
+                <div class="form-group">
+                    <label for="dinheiro">Venda em Dinheiro (R$)</label>
+                    <input type="number" id="dinheiro" name="dinheiro" step="0.01" placeholder="Ex: 500.00">
+                </div>
+                <div class="form-group">
+                    <label for="pix">Venda no Pix (R$)</label>
+                    <input type="number" id="pix" name="pix" step="0.01" placeholder="Ex: 200.50">
+                </div>
+                <div class="form-group">
+                    <label for="custo_func">Custo Funcionário (R$)</label>
+                    <input type="number" id="custo_func" name="custo_func" step="0.01" placeholder="Ex: 250.00">
+                </div>
+                <div class="form-group">
+                    <label for="custo_copos">Custo Copos (R$)</label>
+                    <input type="number" id="custo_copos" name="custo_copos" step="0.01" placeholder="Ex: 50.25">
+                </div>
+                <div class="form-group">
+                    <label for="custo_boleto">Boleto Klaro (R$)</label>
+                    <input type="number" id="custo_boleto" name="custo_boleto" step="0.01" placeholder="Ex: 25.00">
+                </div>
+            </div>
+
+            <div id="campos_barril_festas" style="display:none;">
+                <div class="form-group">
+                    <label for="quantidade_barris_vendidos">Quantidade de Barris Vendidos</label>
+                    <input type="number" id="quantidade_barris_vendidos" name="quantidade_barris_vendidos" min="1" step="0.01" placeholder="Ex: 1.5 (para um barril e meio)">
+                </div>
+            </div>
+            <button type="submit">Salvar Registro</button>
+        </form>
+    </div>
+
+    <div class="container section-divider">
+        <h2>Cadastrar Novo Produto</h2>
+        <form action="/produtos" method="post">
+            <div class="form-group">
+                <label for="produto_nome">Nome do Produto (Ex: Chopp Pilsen 50L)</label>
+                <input type="text" id="produto_nome" name="nome" required>
+            </div>
+            <div class="form-group">
+                <label for="preco_venda_barril_fechado">Preço de Venda Barril Fechado (R$)</label>
+                <input type="number" id="preco_venda_barril_fechado" name="preco_venda_barril_fechado" step="0.01" required placeholder="Ex: 500.00">
+            </div>
+            <button type="submit">Cadastrar Produto</button>
+        </form>
+    </div>
+
+    <div class="container section-divider">
+        <h2>Registrar Entrada de Estoque</h2>
+        <form action="/estoque/entrada" method="post">
+            <div class="form-group">
+                <label for="entrada_produto_id">Produto</label>
+                <select id="entrada_produto_id" name="produto_id" required>
+                    <!-- Opções serão carregadas via JavaScript -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="entrada_quantidade">Quantidade (barris)</label>
+                <input type="number" id="entrada_quantidade" name="quantidade" required min="1">
+            </div>
+            <div class="form-group">
+                <label for="entrada_custo_unitario">Custo Unitário por Barril (R$)</label>
+                <input type="number" id="entrada_custo_unitario" name="custo_unitario" step="0.01" required placeholder="Ex: 285.00">
+            </div>
+            <div class="form-group">
+                <label for="entrada_data_movimento">Data da Entrada</label>
+                <input type="date" id="entrada_data_movimento" name="data_movimento" required>
+            </div>
+            <button type="submit">Registrar Entrada</button>
+        </form>
+    </div>
+
+    <div class="container section-divider">
+        <h2>Registrar Saída Manual de Estoque</h2>
+        <form action="/estoque/saida_manual" method="post">
+            <div class="form-group">
+                <label for="saida_produto_id">Produto</label>
+                <select id="saida_produto_id" name="produto_id" required>
+                    <!-- Opções serão carregadas via JavaScript -->
+                </select>
+            </div>
+            <div class="form-group">
+                <label for="saida_quantidade">Quantidade (barris)</label>
+                <input type="number" id="saida_quantidade" name="quantidade" required min="1">
+            </div>
+            <div class="form-group">
+                <label for="saida_data_movimento">Data da Saída</label>
+                <input type="date" id="saida_data_movimento" name="data_movimento" required>
+            </div>
+            <button type="submit">Registrar Saída Manual</button>
+        </form>
+    </div>
+
+    <div class="container section-divider">
+        <h2>Estoque Atual</h2>
+        <div id="estoque_atual_display">
+            <p>Carregando estoque...</p>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Função para carregar produtos nos selects
+            async function loadProductsIntoSelects() {
+                try {
+                    const response = await fetch('/produtos');
+                    const products = await response.json();
+
+                    const entradaSelect = document.getElementById('entrada_produto_id');
+                    const saidaSelect = document.getElementById('saida_produto_id');
+                    const vendaSelect = document.getElementById('venda_produto_id');
+                    
+                    entradaSelect.innerHTML = '<option value="">Selecione um produto</option>';
+                    saidaSelect.innerHTML = '<option value="">Selecione um produto</option>';
+                    vendaSelect.innerHTML = '<option value="">Selecione um produto</option>';
+
+                    products.forEach(product => {
+                        const optionEntrada = document.createElement('option');
+                        optionEntrada.value = product.id;
+                        optionEntrada.textContent = product.nome;
+                        entradaSelect.appendChild(optionEntrada);
+
+                        const optionSaida = document.createElement('option');
+                        optionSaida.value = product.id;
+                        optionSaida.textContent = product.nome;
+                        saidaSelect.appendChild(optionSaida);
+
+                        const optionVenda = document.createElement('option');
+                        optionVenda.value = product.id;
+                        optionVenda.textContent = product.nome;
+                        vendaSelect.appendChild(optionVenda);
+                    });
+                } catch (error) {
+                    console.error('Erro ao carregar produtos:', error);
+                    alert('Erro ao carregar produtos. Verifique o console para detalhes.');
+                }
+            }
+
+            // Função para carregar e exibir o estoque atual
+            async function loadCurrentStock() {
+                try {
+                    const response = await fetch('/estoque');
+                    const estoque = await response.json();
+                    const displayDiv = document.getElementById('estoque_atual_display');
+                    
+                    let html = '';
+                    if (Object.keys(estoque).length === 0) {
+                        html = '<p>Nenhum item em estoque ou produtos cadastrados.</p>';
+                    } else {
+                        html = '<table class="stock-table"><thead><tr><th>Produto</th><th>Quantidade (barris)</th><th>Volume (litros)</th></tr></thead><tbody>';
+                        for (const produtoNome in estoque) {
+                            const item = estoque[produtoNome];
+                            html += `<tr><td>${produtoNome}</td><td>${item.quantidade_barris}</td><td>${item.volume_litros_total}</td></tr>`;
+                        }
+                        html += '</tbody></table>';
+                    }
+                    displayDiv.innerHTML = html;
+
+                } catch (error) {
+                    console.error('Erro ao carregar estoque:', error);
+                    alert('Erro ao carregar estoque. Verifique o console para detalhes.');
+                }
+            }
+
+            // Carregar dados ao iniciar a página
+            loadProductsIntoSelects();
+            loadCurrentStock();
+
+            // Definir a data atual como padrão para os campos de data
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('data').value = today;
+            document.getElementById('entrada_data_movimento').value = today;
+            document.getElementById('saida_data_movimento').value = today;
+
+            // Lógica para mostrar/esconder campos de acordo com o tipo de venda
+            const tipoVendaSelect = document.getElementById('tipo_venda');
+            const camposFeira = document.getElementById('campos_feira');
+            const camposBarrilFestas = document.getElementById('campos_barril_festas');
+
+            function toggleCamposVenda() {
+                if (tipoVendaSelect.value === 'feira') {
+                    camposFeira.style.display = 'block';
+                    camposBarrilFestas.style.display = 'none';
+                    // Campos de feira são obrigatórios
+                    camposFeira.querySelectorAll('input').forEach(input => input.required = true);
+                    camposBarrilFestas.querySelectorAll('input').forEach(input => input.required = false);
+                } else if (tipoVendaSelect.value === 'barril_festas') {
+                    camposFeira.style.display = 'none';
+                    camposBarrilFestas.style.display = 'block';
+                    // Campos de barril_festas são obrigatórios
+                    camposFeira.querySelectorAll('input').forEach(input => input.required = false);
+                    camposBarrilFestas.querySelectorAll('input').forEach(input => input.required = true);
+                } else {
+                    camposFeira.style.display = 'none';
+                    camposBarrilFestas.style.display = 'none';
+                    camposFeira.querySelectorAll('input').forEach(input => input.required = false);
+                    camposBarrilFestas.querySelectorAll('input').forEach(input => input.required = false);
+                }
+            }
+
+            tipoVendaSelect.addEventListener('change', toggleCamposVenda);
+            toggleCamposVenda(); // Chama na carga inicial da página
+    </script>
+</body>
+</html>

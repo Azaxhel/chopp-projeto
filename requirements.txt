@@ -1,0 +1,17 @@
+fastapi
+uvicorn
+sqlmodel
+pandas
+python-dotenv
+twilio
+psycopg2-binary
+python-multipart
+openpyxl
+alembic
+
+# Dependências de teste e qualidade
+pytest
+pytest-cov
+requests
+pytest-env
+ruff
