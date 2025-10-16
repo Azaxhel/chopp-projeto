@@ -155,4 +155,4 @@ cython_debug/
 master.csv
 master_exemplo.csv
 dados_exemplo/
-*.log
+*.log"database.db" 

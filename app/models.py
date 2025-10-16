@@ -6,7 +6,7 @@ from typing import List, Optional
 class Produto(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     nome: str = Field(index=True)
-    preco_venda_litro: float
+    preco_venda_litro: Optional[float] = None
     preco_venda_barril_fechado: float
     volume_litros: float = Field(
         default=50.0

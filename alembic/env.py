@@ -10,6 +10,7 @@ from sqlmodel import SQLModel
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from app.database import engine  # Importa o engine da sua aplicação
+from app import models
 
 
 # Carrega as variáveis de ambiente (ex: DATABASE_URL)
