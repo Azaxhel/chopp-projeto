@@ -49,4 +49,5 @@ Este documento resume o estado do projeto e as melhorias de profissionalização
 
 ## Próximos Passos Imediatos
 
-1.  **Continuar Melhorias**: Com a suíte de testes estável e o CI funcionando, o foco agora é em melhorias contínuas. A próxima sugestão é refatorar a lógica de negócio para implementar a baixa automática de estoque por vendas de feira, que atualmente não é refletida no endpoint `/estoque`.
+1.  **Refatorar Lógica de Relatórios**: Mover a lógica de geração de relatórios, atualmente no webhook do WhatsApp (`app/main.py`), para o script `run_etl.py`. Isso desacopla a lógica de negócio da API e permite que os relatórios sejam gerados de forma assíncrona, melhorando a performance e a manutenibilidade.
+2.  **Robustez do Webhook**: Implementar uma fila de processamento (ex: Celery ou Dramatiq) para o webhook. Em vez de processar a requisição do Twilio em tempo real, o webhook adicionaria a mensagem a uma fila e um worker a processaria em background. Isso torna o webhook mais rápido e resiliente a falhas.
