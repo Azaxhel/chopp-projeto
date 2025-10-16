@@ -328,20 +328,19 @@ async def get_estoque_atual(
                 MovimentoEstoque.tipo_movimento == "entrada",
             )
         ).all()
-        saidas_manuais = sess.exec(
+        saidas = sess.exec(
             select(MovimentoEstoque.quantidade).where(
                 MovimentoEstoque.produto_id == produto.id,
-                MovimentoEstoque.tipo_movimento == "saida_manual",
+                MovimentoEstoque.tipo_movimento.in_(
+                    ["saida_manual", "saida_venda", "saida_venda_barril"]
+                ),
             )
         ).all()
 
-        # TODO: Implementar a baixa automática por vendas (próximo passo)
-        # Por enquanto, as vendas não afetam o estoque aqui.
-
         total_entradas = sum(entradas)
-        total_saidas_manuais = sum(saidas_manuais)
+        total_saidas = sum(saidas)
 
-        estoque_atual = total_entradas - total_saidas_manuais
+        estoque_atual = total_entradas - total_saidas
 
         estoque_info[produto.nome] = {
             "quantidade_barris": estoque_atual,

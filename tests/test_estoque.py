@@ -126,3 +126,65 @@ def test_get_estoque_atual():
     assert "Pilsen" in estoque
     assert estoque["Pilsen"]["quantidade_barris"] == 8
     assert estoque["Pilsen"]["volume_litros_total"] == 400
+
+
+def test_get_estoque_com_vendas():
+    client.auth = ("admin", "admin")
+    # 1. Cria o produto
+    client.post(
+        "/produtos",
+        data={
+            "nome": "Weiss",
+            "preco_venda_barril_fechado": 700.0,
+            "volume_litros": 50,
+            "preco_venda_litro": 25.0,
+        },
+    )
+    # 2. Registra entrada no estoque
+    client.post(
+        "/estoque/entrada",
+        data={
+            "produto_id": 1,
+            "quantidade": 20,
+            "custo_unitario": 350.0,
+            "data_movimento": "2025-10-01",
+        },
+    )
+    # 3. Registra uma venda de feira (0.5 barril)
+    client.post(
+        "/registrar_venda",
+        data={
+            "data": "2025-10-10",
+            "produto_id": 1,
+            "tipo_venda": "feira",
+            "total": 625.0,  # 25 litros * R$25/litro = 0.5 barril
+            "cartao": 625.0,
+            "dinheiro": 0.0,
+            "pix": 0.0,
+        },
+    )
+    # 4. Registra uma venda de barril (2 barris)
+    client.post(
+        "/registrar_venda",
+        data={
+            "data": "2025-10-11",
+            "produto_id": 1,
+            "tipo_venda": "barril_festas",
+            "quantidade_barris_vendidos": 2,
+            "cartao": 1400.0,
+            "dinheiro": 0.0,
+            "pix": 0.0,
+        },
+    )
+
+    # 5. Verifica o estoque final
+    response = client.get("/estoque")
+    assert response.status_code == 200
+    estoque = response.json()
+
+    # Estoque inicial: 20
+    # Saída feira: 0.5
+    # Saída barril: 2
+    # Estoque final: 20 - 0.5 - 2 = 17.5
+    assert estoque["Weiss"]["quantidade_barris"] == 17.5
+
