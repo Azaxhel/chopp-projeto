@@ -267,3 +267,185 @@ def test_registrar_venda_barril_festas():
         ).first()
         assert movimento_estoque is not None
         assert movimento_estoque.quantidade == 2
+
+
+def test_registrar_venda_feira_sem_total():
+    client.auth = ("admin", "admin")
+    client.post(
+        "/produtos",
+        data={
+            "nome": "Pilsen",
+            "preco_venda_barril_fechado": 600.0,
+            "volume_litros": 50,
+            "preco_venda_litro": 20.0,
+        },
+    )
+
+    venda_data = {
+        "data": "2025-10-10",
+        "produto_id": 1,
+        "tipo_venda": "feira",
+        "cartao": 500.0,
+        "dinheiro": 0.0,
+        "pix": 0.0,
+        "custo_func": 50.0,
+        "custo_copos": 25.0,
+        "custo_boleto": 0.0,
+    }
+    response = client.post("/registrar_venda", data=venda_data)
+    assert response.status_code == 400
+    assert "Total da venda é obrigatório para vendas de feira." in response.text
+
+
+def test_registrar_venda_barril_festas_sem_quantidade():
+    client.auth = ("admin", "admin")
+    client.post(
+        "/produtos",
+        data={
+            "nome": "IPA",
+            "preco_venda_barril_fechado": 750.0,
+            "volume_litros": 50,
+            "preco_venda_litro": 22.0,
+        },
+    )
+
+    venda_data = {
+        "data": "2025-10-11",
+        "produto_id": 1,
+        "tipo_venda": "barril_festas",
+        "cartao": 1500.0,
+        "dinheiro": 0.0,
+        "pix": 0.0,
+    }
+    response = client.post("/registrar_venda", data=venda_data)
+    assert response.status_code == 400
+    assert (
+        "Quantidade de barris vendidos é obrigatória para vendas de barril_festas."
+        in response.text
+    )
+
+
+def test_registrar_venda_tipo_invalido():
+    client.auth = ("admin", "admin")
+    client.post(
+        "/produtos",
+        data={
+            "nome": "Pilsen",
+            "preco_venda_barril_fechado": 600.0,
+            "volume_litros": 50,
+            "preco_venda_litro": 20.0,
+        },
+    )
+    venda_data = {
+        "data": "2025-10-10",
+        "produto_id": 1,
+        "tipo_venda": "invalido",
+        "total": 500.0,
+    }
+    response = client.post("/registrar_venda", data=venda_data)
+    assert response.status_code == 400
+    assert "Tipo de venda inválido. Use 'feira' ou 'barril_festas'." in response.text
+
+
+def test_registrar_venda_produto_nao_encontrado():
+    client.auth = ("admin", "admin")
+    venda_data = {
+        "data": "2025-10-10",
+        "produto_id": 999,
+        "tipo_venda": "feira",
+        "total": 500.0,
+    }
+    response = client.post("/registrar_venda", data=venda_data)
+    assert response.status_code == 404
+    assert "Produto não encontrado." in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+@patch("app.main.get_report_data")
+def test_webhook_comando_relatorio_anual_sucesso(mock_get_report, mock_validate):
+    report_anual = {
+        "receita_bruta": 15000.0,
+        "receita_liquida": 12005.0,
+        "media_vendas": 150.0,
+        "dias_registrados": 100,
+    }
+    mock_get_report.return_value = report_anual
+    response = client.post("/whatsapp/webhook", data={"Body": "relatorio anual 2025"})
+    assert response.status_code == 200
+    assert "Relatório Anual 2025" in response.text
+    assert "Receita bruta: R$ 15000.00" in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+@patch("app.main.get_report_data", return_value=None)
+def test_webhook_comando_relatorio_anual_sem_dados(mock_get_report, mock_validate):
+    response = client.post("/whatsapp/webhook", data={"Body": "relatorio anual 2026"})
+    assert response.status_code == 200
+    assert "Nenhum registro para o ano 2026" in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+def test_webhook_comando_relatorio_anual_formato_invalido(mock_validate):
+    response = client.post("/whatsapp/webhook", data={"Body": "relatorio anual"})
+    assert response.status_code == 200
+    assert "Formato inválido. Use: relatorio anual &lt;ano&gt;" in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+@patch("app.main.get_report_data")
+def test_webhook_comando_comparar_sucesso(mock_get_report, mock_validate):
+    report1 = {"receita_liquida": 1000.0}
+    report2 = {"receita_liquida": 1500.0}
+    mock_get_report.side_effect = [report1, report2]
+    response = client.post(
+        "/whatsapp/webhook", data={"Body": "comparar 10 2025 11 2025"}
+    )
+    assert response.status_code == 200
+    assert "Comparativo: 10/2025 vs 11/2025" in response.text
+    assert "Variação: 50.00%" in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+def test_webhook_comando_comparar_formato_invalido(mock_validate):
+    response = client.post("/whatsapp/webhook", data={"Body": "comparar 10 2025"})
+    assert response.status_code == 200
+    assert (
+        "Formato inválido. Use: comparar &lt;m1&gt; &lt;a1&gt; &lt;m2&gt; &lt;a2&gt;"
+        in response.text
+    )
+
+
+@patch("app.main.validator.validate", return_value=True)
+@patch("app.main.get_dias_movimento")
+def test_webhook_comando_melhores_dias_sucesso(mock_get_dias, mock_validate):
+    ranking = [("Saturday", 500.0), ("Friday", 300.0)]
+    mock_get_dias.return_value = ranking
+    response = client.post(
+        "/whatsapp/webhook", data={"Body": "melhores dias 10 2025"}
+    )
+    assert response.status_code == 200
+    assert "Melhores Dias de 10/2025" in response.text
+    assert "1. Sábado: R$ 500.00" in response.text
+
+
+@patch("app.main.validator.validate", return_value=True)
+def test_webhook_comando_melhores_dias_formato_invalido(mock_validate):
+    response = client.post("/whatsapp/webhook", data={"Body": "melhores dias"})
+    assert response.status_code == 200
+    assert (
+        "Formato inválido. Use: melhores dias &lt;mês&gt; &lt;ano&gt;"
+        in response.text
+    )
+
+
+@patch("app.main.validator.validate", return_value=True)
+def test_webhook_comando_desconhecido(mock_validate):
+    response = client.post("/whatsapp/webhook", data={"Body": "comando invalido"})
+    assert response.status_code == 200
+    assert "Comando não reconhecido" in response.text
+
+
+def test_get_root_unauthorized():
+    client.auth = ("wrong_user", "wrong_password")
+    response = client.get("/")
+    assert response.status_code == 401
