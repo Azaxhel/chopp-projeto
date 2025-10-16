@@ -40,10 +40,13 @@ Este documento resume o estado do projeto e as melhorias de profissionalização
 - **Correção da Migração (Alembic)**: O script de migração do Alembic foi ajustado para usar o modo `batch` para contornar uma limitação do SQLite com `ALTER TABLE`, garantindo que a alteração do esquema fosse aplicada corretamente.
 - **Validação dos Testes**: A suíte de testes foi executada novamente e todos os 9 testes passaram com sucesso, confirmando a correção do problema.
 
+### Fase 8: Aumento da Cobertura de Testes
+- **Análise de Cobertura**: A cobertura de testes inicial era de 74%, com a `app/main.py` em 61%.
+- **Criação de Novos Testes**: Foram adicionados testes para os endpoints de estoque (`/estoque/entrada`, `/estoque/saida_manual`, `/estoque`), cenários de erro em `/registrar_venda`, e para os comandos de webhook (`relatorio anual`, `comparar`, `melhores dias`) e casos de autenticação.
+- **Resultado Final**: A cobertura de testes total do projeto aumentou para 93%, com a `app/main.py` atingindo 87%.
+
 ---
 
 ## Próximos Passos Imediatos
 
-1.  **Validar a Correção dos Testes**: A prioridade máxima é rodar `pytest` novamente para confirmar que todas as correções foram efetivas e que os 9 testes agora passam com sucesso.
-2.  **Validar o Workflow de CI**: Após os testes passarem localmente, fazer o push para o GitHub e verificar na aba "Actions" se o workflow de integração contínua é executado com sucesso.
-3.  **Continuar Melhorias**: Com a suíte de testes estável e o CI funcionando, retomar as opções de polimento, como aumentar a cobertura de testes para outros endpoints ou refatorar a lógica de negócio (ex: baixa de estoque automática).
+1.  **Continuar Melhorias**: Com a suíte de testes estável e o CI funcionando, o foco agora é em melhorias contínuas. A próxima sugestão é refatorar a lógica de negócio para implementar a baixa automática de estoque por vendas de feira, que atualmente não é refletida no endpoint `/estoque`.
